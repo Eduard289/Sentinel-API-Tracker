@@ -96,7 +96,7 @@ if st.session_state.historial:
     df_chart = df.pivot_table(index="Hora", columns="URL", values="Latencia").tail(20)
     st.line_chart(df_chart)
 
-st.markdown("<footer>jose luis asenjo</footer>", unsafe_allow_html=True)
+st.markdown("<footer>Desarrollado por Jose Luis Asenjo</footer>", unsafe_allow_html=True)
 
 # Botón de refresco automático (Simulado)
 if st.button("Actualizar métricas ahora"):
