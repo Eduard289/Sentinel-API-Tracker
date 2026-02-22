@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentinel API Tracker</title>
+    <style>
+        :root { --bg: #0d1117; --card: #161b22; --text: #c9d1d9; --green: #2ea043; --red: #f85149; --accent: #58a6ff; }
+        body { background-color: var(--bg); color: var(--text); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 40px; }
+        
+        #grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+        
+        .card { background: var(--card); border: 1px solid #30363d; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.2s; position: relative; }
+        .card:hover { transform: translateY(-5px); border-color: var(--accent); }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+        .card-title { font-size: 1.2rem; font-weight: bold; word-break: break-all; margin: 0; }
+        
+        /* Semáforo parpadeante */
+        .status-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px currentColor; }
+        .status-dot.online { color: var(--green); background-color: var(--green); animation: pulse-green 2s infinite; }
+        .status-dot.offline { color: var(--red); background-color: var(--red); animation: pulse-red 2s infinite; }
+        
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(46, 160, 67, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 160, 67, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 160, 67, 0); } }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(248, 81, 73, 0); } 100% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0); } }
+
+        .metric { display: flex; justify-content: space-between; margin: 8px 0; font-size: 0.95rem; }
+        .metric-label { color: #8b949e; }
+        .metric-value { font-weight: bold; }
+        
+        .tags { margin-top: 15px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag { background: #21262d; border: 1px solid #30363d; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; color: #8b949e; }
+        
+        .btn-attack { margin-top: 20px; width: 100%; background: transparent; border: 1px solid var(--red); color: var(--red); padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
+        .btn-attack:hover { background: var(--red); color: white; }
+    </style>
+</head>
+<body>
+
+    <h1>🛰️ Sentinel API Tracker</h1>
+    <div id="grid">
+        <div style="text-align: center; width: 100%; color: #8b949e;">Conectando al motor Sentinel...</div>
+    </div>
+
+    <script>
+        const grid = document.getElementById('grid');
+
+        // Función para disparar el simulador de estrés
+        async function lanzarAtaque(id, url) {
+            if(confirm(`¿Estás seguro de lanzar 50 peticiones concurrentes a ${url}?`)) {
+                try {
+                    await fetch(`/api/stress/${id}`, { method: 'POST' });
+                    // Visual feedback
+                    alert(`⚡ Ataque de estrés iniciado contra ${url}. Observa la latencia.`);
+                } catch (e) {
+                    console.error("Error al lanzar ataque", e);
+                }
+            }
+        }
+
+        // Función principal que lee el motor Python en tiempo real
+        async function actualizarDatos() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                grid.innerHTML = ''; // Limpiamos la cuadrícula
+                
+                // Recorremos cada servidor monitorizado
+                for (const [id, info] of Object.entries(data)) {
+                    const isOnline = info.status === 200;
+                    const dotClass = isOnline ? 'online' : 'offline';
+                    const tagsHtml = info.tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <h2 class="card-title">${info.url.replace('https://', '').replace('http://', '')}</h2>
+                            <div class="status-dot ${dotClass}" title="Status HTTP: ${info.status}"></div>
+                        </div>
+                        
+                        <div class="metric">
+                            <span class="metric-label">Estado HTTP:</span>
+                            <span class="metric-value" style="color: ${isOnline ? 'var(--green)' : 'var(--red)'}">${info.status}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Latencia:</span>
+                            <span class="metric-value">${info.latencia_ms} ms</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Peso Respuesta:</span>
+                            <span class="metric-value">${info.payload_kb} KB</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Certificado SSL:</span>
+                            <span class="metric-value">${info.ssl_dias !== 'N/A' ? info.ssl_dias + ' días' : 'No aplica'}</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Rate Limit:</span>
+                            <span class="metric-value">${info.rate_limit_restante}</span>
+                        </div>
+                        
+                        <div class="tags">${tagsHtml}</div>
+                        <div style="text-align: right; font-size: 0.8rem; color: #555; margin-top: 10px;">Último check: ${info.timestamp}</div>
+                        
+                        <button class="btn-attack" onclick="lanzarAtaque('${id}', '${info.url}')">⚠️ Lanzar Test de Estrés</button>
+                    `;
+                    grid.appendChild(card);
+                }
+            } catch (error) {
+                console.error("Error conectando con Sentinel:", error);
+                grid.innerHTML = '<div style="color: var(--red); text-align:center; width:100%;">Error de conexión con el motor backend.</div>';
+            }
+        }
+
+        // Llamamos a la API nada más entrar
+        actualizarDatos();
+        
+        // Magia en tiempo real: Preguntamos a Python cada 2 segundos (2000 ms)
+        setInterval(actualizarDatos, 2000);
+    </script>
+</body>
+</html>
