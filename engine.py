@@ -4,7 +4,7 @@ import threading
 import ssl
 import socket
 from datetime import datetime
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from waitress import serve
 
 app = Flask(__name__)
@@ -96,6 +96,11 @@ def motor_monitorizacion():
         time.sleep(5)
 
 # --- RUTAS DE LA API (FLASK) ---
+
+@app.route('/')
+def index():
+    """Sirve el panel de control (Radar) al usuario"""
+    return render_template('index.html')
 
 @app.route('/api/status')
 def get_status():
